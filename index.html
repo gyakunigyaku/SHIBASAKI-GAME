@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SHIBASAKI GAME</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #fceeb5;
+            background-image: url('./images/bg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            touch-action: none;
+            /* 明朝体指定 */
+            font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "HGSMinchoE", "MS PMincho", serif;
+        }
+        #game-area {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 120px; 
+            box-sizing: border-box;
+        }
+
+        /* スタート画面 */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            cursor: pointer;
+            color: #fff;
+            font-family: sans-serif;
+        }
+
+        /* ゲームオーバー画面 */
+        #gameover-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+        }
+        #gameover-img {
+            max-width: 80%;
+            max-height: 40%;
+            margin-bottom: 20px;
+            animation: popIn 0.5s ease-out;
+        }
+        #final-score {
+            font-size: 40px;
+            color: #fff;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #ff9800;
+            font-family: sans-serif;
+        }
+        /* ★最終タイム表示用 */
+        #final-time {
+            font-size: 30px;
+            color: #fff;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #2196f3;
+            font-family: sans-serif;
+        }
+        /* ★煽りテキスト用 */
+        #gameover-message {
+            font-size: 22px;
+            color: #ffeb3b; /* 黄色 */
+            font-weight: bold;
+            margin-bottom: 40px;
+            text-shadow: 0 0 8px #f57f17;
+            font-family: sans-serif;
+        }
+        #retry-btn {
+            padding: 15px 40px;
+            font-size: 24px;
+            background: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #e65100;
+            font-family: sans-serif;
+        }
+        #retry-btn:active { transform: translateY(4px); box-shadow: none; }
+
+        /* 黒一色の力強いカットイン演出 */
+        #cutin-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 250; 
+            pointer-events: none;
+        }
+        
+        #cutin-text {
+            font-size: 380px; 
+            font-size: min(380px, 95vw); 
+            font-weight: 900;
+            color: #000;
+            text-shadow: none;
+            animation: fadeFlow 2s ease-in-out forwards;
+            white-space: nowrap;
+        }
+        
+        .vertical-text {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            font-size: 200px !important; 
+            font-size: min(200px, 28vh) !important;
+            letter-spacing: -15px; 
+        }
+
+        @keyframes fadeFlow {
+            0% { opacity: 0; transform: scale(1.5); }
+            20% { opacity: 1; transform: scale(1); }
+            80% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.1); }
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+
+        #start-text { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+        
+        canvas {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-bottom: 6px solid rgba(255, 255, 255, 0.6);
+            border-left: 6px solid rgba(255, 255, 255, 0.6);
+            border-right: 6px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+        
+        /* ★スコアとタイムの表示エリア */
+        #score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-family: sans-serif;
+            z-index: 100;
+        }
+        #score-display {
+            font-size: 28px;
+        }
+        #time-display {
+            font-size: 20px;
+            margin-top: 5px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+
+<div id="game-area">
+    <div id="start-screen">
+        <div id="start-text">読み込み中...</div>
+        <div style="font-size: 16px; opacity: 0.8;">画面をタップしてスタート</div>
+    </div>
+
+    <div id="cutin-screen">
+        <div id="cutin-text"></div>
+    </div>
+
+    <div id="gameover-screen">
+        <img id="gameover-img" src="./images/gameover.png" alt="GAME OVER">
+        <div id="final-score">Score: 0</div>
+        <div id="final-time">Time: 00:00</div>
+        <div id="gameover-message">こんだけの時間を溶かしたぞよ</div>
+        <button id="retry-btn" onclick="location.reload()">RETRY</button>
+    </div>
+    
+    <div id="score-board" style="display:none;">
+        <div id="score-display">Score: <span id="score">0</span></div>
+        <div id="time-display">Time: <span id="time">00:00</span></div>
+    </div>
+</div>
+
+<script>
+    // --- 設定エリア ---
+    const FRUIT_DATA = [
+        { radius: 20,  score: 10,  src: './images/fruit0.png' }, 
+        { radius: 28,  score: 20,  src: './images/fruit1.png' }, 
+        { radius: 36,  score: 30,  src: './images/fruit2.png' }, 
+        { radius: 44,  score: 40,  src: './images/fruit3.png' }, 
+        { radius: 52,  score: 50,  src: './images/fruit4.png' }, 
+        { radius: 62,  score: 60,  src: './images/fruit5.png' }, 
+        { radius: 72,  score: 70,  src: './images/fruit6.png' }, 
+        { radius: 82,  score: 80,  src: './images/fruit7.png' }, // 兄
+        { radius: 92,  score: 90,  src: './images/fruit8.png' }, // 母
+        { radius: 102, score: 100, src: './images/fruit9.png' }, // 父
+        { radius: 115, score: 110, src: './images/fruit10.png'}  // 柴崎家
+    ];
+
+    const SOUNDS = {
+        bgm:      './sounds/bgm.mp3',      
+        fruit6:   './sounds/fruit6.mp3',   
+        fruit9:   './sounds/fruit9.mp3',   
+        fruit10:  './sounds/fruit10.mp3',  
+        gameover: './sounds/gameover.mp3', 
+        drop:     './sounds/drop.mp3',     
+        pop:      './sounds/pop.mp3'       
+    };
+
+    const GAME_WIDTH = 400;
+    const GAME_HEIGHT = 650;
+    const DEAD_LINE_Y = 120; 
+
+    // --- リソース管理 ---
+    const loadedImages = {};
+    const audioContexts = {}; 
+
+    function preloadResources(callback) {
+        let loadedCount = 0;
+        const total = FRUIT_DATA.length;
+
+        FRUIT_DATA.forEach((fruit, index) => {
+            const img = new Image();
+            img.src = fruit.src;
+            img.onload = () => { loadedImages[index] = { width: img.width, height: img.height, src: fruit.src }; checkLoad(); };
+            img.onerror = () => { loadedImages[index] = { width: 100, height: 100, src: fruit.src }; checkLoad(); };
+        });
+
+        ['bgm', 'fruit6', 'fruit9', 'fruit10'].forEach(key => {
+            audioContexts[key] = new Audio(SOUNDS[key]);
+            audioContexts[key].loop = true;
+        });
+
+        ['gameover', 'drop', 'pop'].forEach(key => {
+            audioContexts[key] = new Audio(SOUNDS[key]);
+        });
+
+        function checkLoad() {
+            loadedCount++;
+            if (loadedCount === total) callback();
+        }
+    }
+
+    function playSE(key) {
+        const se = audioContexts[key].cloneNode();
+        se.volume = 0.8;
+        se.play().catch(e => {});
+    }
+
+    // --- BGM制御 ---
+    function updateMusic(bodies) {
+        if (isGameOver) return;
+
+        let hasFruit6 = false;
+        let hasFruit9 = false;
+        let hasFruit10 = false;
+
+        bodies.forEach(body => {
+            if (body.label === 'fruit_6') hasFruit6 = true;
+            if (body.label === 'fruit_9') hasFruit9 = true;
+            if (body.label === 'fruit_10') hasFruit10 = true;
+        });
+
+        const bgm = audioContexts.bgm;
+        const audio6 = audioContexts.fruit6;
+        const audio9 = audioContexts.fruit9;
+        const audio10 = audioContexts.fruit10;
+
+        if (hasFruit10) {
+            playExclusive(audio10, [audio9, audio6, bgm]);
+        } else if (hasFruit9) {
+            playExclusive(audio9, [audio10, audio6, bgm]);
+        } else if (hasFruit6) {
+            playExclusive(audio6, [audio10, audio9, bgm]);
+        } else {
+            playExclusive(bgm, [audio10, audio9, audio6]);
+        }
+    }
+
+    function playExclusive(target, others) {
+        if (target.paused) {
+            const p = target.play();
+            if (p !== undefined) p.catch(e => {});
+        }
+        others.forEach(audio => {
+            if (!audio.paused) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+        });
+    }
+
+    function stopAllMusic() {
+        Object.values(audioContexts).forEach(audio => audio.pause());
+    }
+
+    // --- 筆文字カットイン表示 ---
+    function showCutIn(text, isVertical = false) {
+        const screen = document.getElementById('cutin-screen');
+        const textBox = document.getElementById('cutin-text');
+
+        textBox.style.animation = 'none';
+        textBox.offsetHeight; /* trigger reflow */
+        textBox.style.animation = 'fadeFlow 2s ease-in-out forwards';
+
+        textBox.className = ''; 
+        textBox.innerText = text;
+
+        if (isVertical) {
+            textBox.classList.add('vertical-text');
+        }
+
+        screen.style.display = 'flex';
+
+        setTimeout(() => {
+            screen.style.display = 'none';
+        }, 2000); 
+    }
+
+    // ★時間を「分:秒」にフォーマットする関数
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    let isGameOver = false;
+    let gameOverTimer = 0;
+    let startTime = 0; // ★ゲーム開始時刻を記録する変数
+
+    const startScreen = document.getElementById('start-screen');
+    const startText = document.getElementById('start-text');
+
+    preloadResources(() => {
+        startText.innerText = "準備完了！タップしてスタート";
+        
+        startScreen.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            document.getElementById('score-board').style.display = 'block';
+            
+            const preloadList = ['fruit6', 'fruit9', 'fruit10', 'gameover', 'drop', 'pop'];
+            preloadList.forEach(key => {
+                const audio = audioContexts[key];
+                audio.volume = 0;
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = 1;
+                }).catch(e => {});
+            });
+            
+            const bgm = audioContexts.bgm;
+            bgm.volume = 1; 
+            bgm.currentTime = 0;
+            bgm.play().catch(e => console.log("BGM Start Error:", e));
+            
+            // ★ゲームスタート時間を記録
+            startTime = Date.now();
+            
+            initGame();
+        }, { once: true });
+    });
+
+    function initGame() {
+        const ENGINE = Matter.Engine;
+        const RENDER = Matter.Render;
+        const RUNNER = Matter.Runner;
+        const BODIES = Matter.Bodies;
+        const COMPOSITE = Matter.Composite;
+        const EVENTS = Matter.Events;
+
+        const container = document.getElementById('game-area');
+
+        const engine = ENGINE.create({
+            positionIterations: 30, velocityIterations: 30, constraintIterations: 10, enableSleeping: false
+        });
+        const world = engine.world;
+
+        const render = RENDER.create({
+            element: container, engine: engine,
+            options: { width: GAME_WIDTH, height: GAME_HEIGHT, wireframes: false, background: 'transparent', pixelRatio: window.devicePixelRatio || 1 }
+        });
+
+        const wallThickness = 1000;
+        const wallOptions = { isStatic: true, render: { visible: false }, friction: 0.8, restitution: 0.1 };
+        const ground = BODIES.rectangle(GAME_WIDTH/2, GAME_HEIGHT + wallThickness/2, GAME_WIDTH + 200, wallThickness, wallOptions);
+        const leftWall = BODIES.rectangle(-wallThickness/2, GAME_HEIGHT/2, wallThickness, GAME_HEIGHT*2, wallOptions);
+        const rightWall = BODIES.rectangle(GAME_WIDTH + wallThickness/2, GAME_HEIGHT/2, wallThickness, GAME_HEIGHT*2, wallOptions);
+        COMPOSITE.add(world, [ground, leftWall, rightWall]);
+
+        let score = 0;
+        const scoreElement = document.getElementById('score');
+        const timeElement = document.getElementById('time'); // ★タイム表示用要素
+        let currentFruit = null;
+        let isDropping = false;
+        let nextFruitIndex = 0;
+
+        function createFruitBody(x, y, index, isPreview = false) {
+            const info = FRUIT_DATA[index];
+            const imgData = loadedImages[index];
+            const scaleX = (info.radius * 2.02) / imgData.width;
+            const scaleY = (info.radius * 2.02) / imgData.height;
+            const finalScale = Math.max(scaleX, scaleY);
+
+            const body = BODIES.circle(x, y, info.radius, {
+                isStatic: isPreview,
+                label: isPreview ? 'preview' : `fruit_${index}`,
+                slop: 0.0, friction: 0.3, frictionStatic: 10, density: 0.002, restitution: 0.15,
+                render: { opacity: isPreview ? 0.6 : 1, sprite: { texture: info.src, xScale: finalScale, yScale: finalScale } }
+            });
+            return body;
+        }
+
+        function createNextFruit() {
+            if (isGameOver) return;
+            nextFruitIndex = Math.floor(Math.random() * 5); 
+            currentFruit = createFruitBody(GAME_WIDTH / 2, 50, nextFruitIndex, true);
+            COMPOSITE.add(world, currentFruit);
+        }
+
+        createNextFruit();
+
+        function getCanvasX(clientX) {
+            const rect = render.canvas.getBoundingClientRect();
+            const scaleX = GAME_WIDTH / rect.width;
+            return (clientX - rect.left) * scaleX;
+        }
+
+        function handleInput(x) {
+            if (isGameOver || !currentFruit || isDropping) return;
+            const radius = currentFruit.circleRadius;
+            const minX = radius + 5;
+            const maxX = GAME_WIDTH - radius - 5;
+            const safeX = Math.max(minX, Math.min(x, maxX));
+            Matter.Body.setPosition(currentFruit, { x: safeX, y: 50 });
+        }
+
+        function dropFruit() {
+            if (isGameOver || !currentFruit || isDropping) return;
+            isDropping = true;
+            
+            const x = currentFruit.position.x;
+            const y = currentFruit.position.y;
+            const index = nextFruitIndex;
+            
+            COMPOSITE.remove(world, currentFruit);
+            const realFruit = createFruitBody(x, y, index, false);
+            realFruit.isDroppingFruit = true; 
+
+            Matter.Body.setAngularVelocity(realFruit, (Math.random() - 0.5) * 0.05);
+            COMPOSITE.add(world, realFruit);
+
+            setTimeout(() => {
+                isDropping = false;
+                createNextFruit();
+            }, 500);
+        }
+
+        window.addEventListener('mousemove', e => handleInput(getCanvasX(e.clientX)));
+        window.addEventListener('touchmove', e => handleInput(getCanvasX(e.touches[0].clientX)), { passive: false });
+        window.addEventListener('mouseup', dropFruit);
+        window.addEventListener('touchend', dropFruit);
+
+        // 衝突イベント
+        EVENTS.on(engine, 'collisionStart', (event) => {
+            if (isGameOver) return;
+            const pairs = event.pairs;
+            for (let i = 0; i < pairs.length; i++) {
+                const bodyA = pairs[i].bodyA;
+                const bodyB = pairs[i].bodyB;
+
+                if (bodyA.isDroppingFruit || bodyB.isDroppingFruit) {
+                    playSE('drop'); 
+                    if (bodyA.isDroppingFruit) bodyA.isDroppingFruit = false;
+                    if (bodyB.isDroppingFruit) bodyB.isDroppingFruit = false;
+                }
+
+                if (bodyA.label.startsWith('fruit_') && bodyB.label.startsWith('fruit_')) {
+                    const indexA = parseInt(bodyA.label.split('_')[1]);
+                    const indexB = parseInt(bodyB.label.split('_')[1]);
+
+                    if (indexA === indexB) {
+                        if (bodyA.isRemoved || bodyB.isRemoved) continue;
+                        if (indexA === FRUIT_DATA.length - 1) continue;
+
+                        bodyA.isRemoved = true;
+                        bodyB.isRemoved = true;
+
+                        playSE('pop');
+
+                        const newX = (bodyA.position.x + bodyB.position.x) / 2;
+                        const newY = (bodyA.position.y + bodyB.position.y) / 2;
+                        const newIndex = indexA + 1;
+
+                        COMPOSITE.remove(world, [bodyA, bodyB]);
+                        const newFruit = createFruitBody(newX, newY, newIndex, false);
+                        COMPOSITE.add(world, newFruit);
+
+                        if (newIndex === 7) { 
+                            showCutIn("兄");
+                        } else if (newIndex === 8) { 
+                            showCutIn("母");
+                        } else if (newIndex === 9) { 
+                            showCutIn("父");
+                        } else if (newIndex === 10) { 
+                            showCutIn("柴崎家", true);
+                        }
+
+                        score += FRUIT_DATA[indexA].score * 2;
+                        scoreElement.innerText = score;
+                    }
+                }
+            }
+        });
+
+        // ★毎フレーム実行される処理
+        EVENTS.on(engine, 'afterUpdate', () => {
+            if (isGameOver) return;
+
+            // タイムの更新
+            const elapsed = Date.now() - startTime;
+            timeElement.innerText = formatTime(elapsed);
+
+            const bodies = COMPOSITE.allBodies(world);
+            updateMusic(bodies);
+
+            let isDangerous = false;
+            bodies.forEach(body => {
+                if (body.label.startsWith('fruit_')) {
+                    if (body.position.y < DEAD_LINE_Y) {
+                        isDangerous = true;
+                    }
+                }
+            });
+
+            if (isDangerous) {
+                gameOverTimer++;
+                if (gameOverTimer > 120) triggerGameOver();
+            } else {
+                gameOverTimer = 0;
+            }
+        });
+
+        EVENTS.on(render, 'afterRender', () => {
+            const ctx = render.context;
+            ctx.beginPath();
+            ctx.moveTo(0, DEAD_LINE_Y);
+            ctx.lineTo(GAME_WIDTH, DEAD_LINE_Y);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]); 
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+
+        function triggerGameOver() {
+            isGameOver = true;
+            RUNNER.stop(runner);
+            stopAllMusic();
+            audioContexts.gameover.play();
+            
+            // ★最終スコアとタイムの反映
+            const finalElapsed = Date.now() - startTime;
+            document.getElementById('final-score').innerText = "Score: " + score;
+            document.getElementById('final-time').innerText = "Time: " + formatTime(finalElapsed);
+            
+            document.getElementById('gameover-screen').style.display = 'flex';
+        }
+
+        RENDER.run(render);
+        const runner = RUNNER.create({ isFixed: true, delta: 1000/60 });
+        RUNNER.run(runner, engine);
+    }
+</script>
+</body>
+</html>
