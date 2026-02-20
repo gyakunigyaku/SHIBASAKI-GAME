@@ -69,23 +69,25 @@
             text-shadow: 0 0 10px #ff9800;
             font-family: sans-serif;
         }
-        /* ★最終タイム表示用 */
+        /* 最終タイム表示用 */
         #final-time {
             font-size: 30px;
             color: #fff;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             text-shadow: 0 0 10px #2196f3;
             font-family: sans-serif;
         }
-        /* ★煽りテキスト用 */
+        /* 煽りテキスト用 */
         #gameover-message {
             font-size: 22px;
-            color: #ffeb3b; /* 黄色 */
+            color: #ffeb3b;
             font-weight: bold;
             margin-bottom: 40px;
             text-shadow: 0 0 8px #f57f17;
             font-family: sans-serif;
+            text-align: center;
+            line-height: 1.5; 
         }
         #retry-btn {
             padding: 15px 40px;
@@ -152,7 +154,7 @@
             box-shadow: 0 0 20px rgba(255,255,255,0.2);
         }
         
-        /* ★スコアとタイムの表示エリア */
+        /* スコアとタイムの表示エリア */
         #score-board {
             position: absolute;
             top: 20px;
@@ -164,13 +166,8 @@
             font-family: sans-serif;
             z-index: 100;
         }
-        #score-display {
-            font-size: 28px;
-        }
-        #time-display {
-            font-size: 20px;
-            margin-top: 5px;
-        }
+        #score-display { font-size: 28px; }
+        #time-display { font-size: 20px; margin-top: 5px; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -190,7 +187,7 @@
         <img id="gameover-img" src="./images/gameover.png" alt="GAME OVER">
         <div id="final-score">Score: 0</div>
         <div id="final-time">Time: 00:00</div>
-        <div id="gameover-message">こんだけ時間を溶かしたぞよ。時間を大切に！</div>
+        <div id="gameover-message">こんだけの時間を溶かしたぞよ。<br>御主の時間を大切に！</div>
         <button id="retry-btn" onclick="location.reload()">RETRY</button>
     </div>
     
@@ -258,6 +255,11 @@
             loadedCount++;
             if (loadedCount === total) callback();
         }
+
+        // セーフティ：もし10秒経っても読み込めなければ強制スタート
+        setTimeout(() => {
+            if (loadedCount < total) callback();
+        }, 10000);
     }
 
     function playSE(key) {
@@ -336,7 +338,7 @@
         }, 2000); 
     }
 
-    // ★時間を「分:秒」にフォーマットする関数
+    // 時間を「分:秒」にフォーマットする関数
     function formatTime(ms) {
         const totalSeconds = Math.floor(ms / 1000);
         const minutes = Math.floor(totalSeconds / 60);
@@ -346,7 +348,7 @@
 
     let isGameOver = false;
     let gameOverTimer = 0;
-    let startTime = 0; // ★ゲーム開始時刻を記録する変数
+    let startTime = 0; 
 
     const startScreen = document.getElementById('start-screen');
     const startText = document.getElementById('start-text');
@@ -374,7 +376,6 @@
             bgm.currentTime = 0;
             bgm.play().catch(e => console.log("BGM Start Error:", e));
             
-            // ★ゲームスタート時間を記録
             startTime = Date.now();
             
             initGame();
@@ -410,7 +411,7 @@
 
         let score = 0;
         const scoreElement = document.getElementById('score');
-        const timeElement = document.getElementById('time'); // ★タイム表示用要素
+        const timeElement = document.getElementById('time'); 
         let currentFruit = null;
         let isDropping = false;
         let nextFruitIndex = 0;
@@ -516,6 +517,7 @@
                         const newFruit = createFruitBody(newX, newY, newIndex, false);
                         COMPOSITE.add(world, newFruit);
 
+                        // カットイン処理
                         if (newIndex === 7) { 
                             showCutIn("兄");
                         } else if (newIndex === 8) { 
@@ -533,7 +535,7 @@
             }
         });
 
-        // ★毎フレーム実行される処理
+        // 毎フレーム更新
         EVENTS.on(engine, 'afterUpdate', () => {
             if (isGameOver) return;
 
@@ -579,7 +581,7 @@
             stopAllMusic();
             audioContexts.gameover.play();
             
-            // ★最終スコアとタイムの反映
+            // 最終スコアとタイムの反映
             const finalElapsed = Date.now() - startTime;
             document.getElementById('final-score').innerText = "Score: " + score;
             document.getElementById('final-time').innerText = "Time: " + formatTime(finalElapsed);
